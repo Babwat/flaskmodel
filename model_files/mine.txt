@@ -1,0 +1,161 @@
+### Step-by-Step Guide to Develop a Web Service with Flask for TensorFlow Lite Model Predictions
+
+We'll adapt the process you described for developing a web service to handle TensorFlow Lite model predictions using Flask. The process involves setting up a Flask application, handling image uploads, running inferences using the TensorFlow Lite model, and returning the results.
+
+#### 1. Set Up Flask Application
+
+1. *Create a new directory for the Flask application.*
+2. *Set up a virtual environment and install dependencies:*
+
+sh
+python -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+pip install flask numpy pillow tensorflow
+
+
+#### 2. Create the Flask App
+
+**Create a file named main.py and set up the basic Flask application:**
+
+python
+from flask import Flask, render_template, request, jsonify
+from PIL import Image
+import numpy as np
+import tensorflow as tf
+
+app = Flask(__name__)
+
+# Load the TensorFlow Lite model
+model_path = "model_files/best_float32.tflite"
+interpreter = tf.lite.Interpreter(model_path=model_path)
+interpreter.allocate_tensors()
+
+# Get input details
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+# Ensure input shape
+input_shape = input_details[0]['shape']
+input_height, input_width = input_shape[1], input_shape[2]
+
+# Load labels
+label_path = "model_files/labels.txt"
+with open(label_path, "r") as f:
+    labels = f.read().splitlines()
+
+@app.route('/test', methods=['GET'])
+def test():
+    return 'Pinging Model Application!!'
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No file part'})
+    image_data = request.files['image']
+    if image_data.filename == '':
+        return jsonify({'error': 'No selected file'})
+
+    try:
+        # Read the uploaded image data using PIL
+        image = Image.open(image_data)
+        image = image.resize((input_width, input_height))
+        image = np.array(image, dtype=np.float32) / 255.0  # Normalize pixel values
+        image = np.expand_dims(image, axis=0)  # Add batch dimension
+
+        # Perform inference
+        interpreter.set_tensor(input_details[0]['index'], image)
+        interpreter.invoke()
+
+        output_data = interpreter.get_tensor(output_details[0]['index'])
+
+        predictions = []
+        for detection in output_data[0]:
+            box = detection[:4]
+            class_idx = int(detection[4])
+            confidence = float(detection[5])
+            predictions.append({
+                "bounding_box": box.tolist(),
+                "class": labels[class_idx],
+                "confidence": confidence
+            })
+
+        return jsonify({"predictions": predictions})
+
+    except Exception as e:
+        return jsonify({'inference error': str(e)})
+
+@app.route('/')
+def upload_form():
+    return render_template('upload_form.html')
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=9696)
+
+
+### 3. Creating Supporting Files
+
+**Create a directory named model_files and add the following files:**
+
+- best_float32.tflite: Your TensorFlow Lite model file.
+- labels.txt: A text file containing the labels, one per line.
+
+**Create an HTML file named upload_form.html in a templates directory:**
+
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Upload</title>
+</head>
+<body>
+    <h1>Upload Image for Prediction</h1>
+    <form action="/predict" method="post" enctype="multipart/form-data">
+        <input type="file" name="image">
+        <button type="submit">Upload</button>
+    </form>
+</body>
+</html>
+
+
+### 4. Running the Flask App
+
+1. *Activate the virtual environment:*
+
+sh
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+
+
+2. *Run the Flask application:*
+
+sh
+python main.py
+
+
+3. **Open your browser and navigate to http://localhost:9696 to see the upload form.**
+
+### 5. Test the Prediction Endpoint
+
+You can test the prediction endpoint using a tool like Postman or by writing a simple script:
+
+python
+import requests
+
+url = "http://localhost:9696/predict"
+image_path = "path_to_your_image.jpg"
+files = {'image': open(image_path, 'rb')}
+
+response = requests.post(url, files=files)
+print(response.json())
+
+
+This script sends an image to the /predict endpoint and prints the prediction results.
+
+### Summary
+
+- *Set up a Flask application*: Created routes to handle image uploads and run predictions using a TensorFlow Lite model.
+- *Handled image preprocessing*: Resized and normalized the image before making predictions.
+- *Returned JSON response*: Returned prediction results in a structured JSON format.
+
+This setup integrates the Flask web service with a TensorFlow Lite model for image classification, following best practices for deployment and testing.
