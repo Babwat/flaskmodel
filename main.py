@@ -8,6 +8,21 @@ app = Flask(__name__)
 
 # Initialize the YOLO model
 model = YOLO("model_files/best.pt")
+class_names = ["healthy", "infected"]
+
+def calculate_severity(boxes):
+    """
+    Calculate severity based on the size of detected areas.
+    This is a simplistic example; you should adapt it based on your criteria.
+    """
+    total_area = sum((box[2] - box[0]) * (box[3] - box[1]) for box in boxes) 
+    print(total_area) # Assuming boxes are in [x1, y1, x2, y2] format
+    if total_area > 200000:  
+        return "High"
+    elif total_area > 50000:
+        return "Medium"
+    else:
+        return "Low"
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -30,32 +45,43 @@ def predict():
         # Run inference on the resized image
         results = model([image])[0]  # Note: Adjust this line based on actual API usage
         
+        classes = results.boxes.cls
+        class_indices = classes.cpu().numpy().tolist() if isinstance(classes, torch.Tensor) else classes.tolist()
+        class_names_list = [class_names[int(idx)] for idx in class_indices]
+        
         # Process results
         boxes = results.boxes
-        masks = results.masks
-        keypoints = results.keypoints
-        probs = results.probs
-        obb = results.obb
+        
+
+        for pred in results:
+            print(pred)
+            pred.save(filename="result.jpg")  # save to disk
         
         # Assuming `boxes` is your Boxes object
         # Convert boxes to NumPy array and then to list
-        boxes_np = None
+        print("classes :" , class_names_list)
         
+        probs_list = None
         # Convert boxes, probs, masks, and keypoints to lists
         boxes_list = boxes.xyxy.cpu().numpy().tolist() if isinstance(boxes.xyxy, torch.Tensor) else boxes.xyxy.tolist()
-        probs_list = probs.cpu().numpy().tolist() if isinstance(probs, torch.Tensor) else probs.tolist()
+
+        # Calculate severity
         
-        # Assuming masks and keypoints are tensors or arrays; adjust accordingly
-        #masks_list = masks.cpu().numpy().tolist() if isinstance(masks, torch.Tensor) else masks.tolist()
-        #keypoints_list = keypoints.cpu().numpy().tolist() if isinstance(keypoints, torch.Tensor) else keypoints.tolist()
-        
-        # Example: Return the bounding boxes, probs, masks, and keypoints as JSON
-        return jsonify({
-            'boxes': boxes_list,
-            'probs': probs_list
-            #'masks': masks_list,
-            #'keypoints': keypoints_list
+
+        if class_names_list[0]== 'healthy':
+            return jsonify({
+            'classes': 'healthy'
+            }), 200
+        else:
+            severity = calculate_severity(boxes.xyxy)
+            print(severity) 
+            return jsonify({
+            'severity': severity,
+            #'boxes': boxes_list
+            'classes': 'infected plant'
         }), 200
+        
+        
 
         
     except Exception as e:
