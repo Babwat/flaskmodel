@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import cv2
 from ultralytics import YOLO
 import numpy as np
-import torch 
+import torch  
 
 app = Flask(__name__)
 
@@ -52,7 +52,6 @@ def predict():
         # Process results
         boxes = results.boxes
         
-
         for pred in results:
             print(pred)
             pred.save(filename="result.jpg")  # save to disk
@@ -77,15 +76,12 @@ def predict():
             print(severity) 
             return jsonify({
             'severity': severity,
-            #'boxes': boxes_list
             'classes': 'infected plant'
         }), 200
         
-        
-
-        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9696, debug=True)
