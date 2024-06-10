@@ -17,9 +17,9 @@ def calculate_severity(boxes):
     """
     total_area = sum((box[2] - box[0]) * (box[3] - box[1]) for box in boxes) 
     print(total_area) # Assuming boxes are in [x1, y1, x2, y2] format
-    if total_area > 300000:  
+    if total_area > 400000:  
         return "High"
-    elif total_area > 50000:
+    elif total_area > 200000:
         return "Medium"
     else:
         return "Low"
@@ -43,7 +43,7 @@ def predict():
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
         # Run inference on the resized image
-        results = model.predict(source=image, conf=0.5)[0] 
+        results = model.predict(source=image)[0] 
         
         classes = results.boxes.cls
         class_indices = classes.cpu().numpy().tolist() if isinstance(classes, torch.Tensor) else classes.tolist()
