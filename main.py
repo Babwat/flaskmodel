@@ -17,9 +17,9 @@ def calculate_severity(boxes):
     """
     total_area = sum((box[2] - box[0]) * (box[3] - box[1]) for box in boxes) 
     print(total_area) # Assuming boxes are in [x1, y1, x2, y2] format
-    if total_area > 200000:  
+    if total_area > 400000:  
         return "High"
-    elif total_area > 50000:
+    elif total_area > 200000:
         return "Medium"
     else:
         return "Low"
@@ -43,7 +43,7 @@ def predict():
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
         # Run inference on the resized image
-        results = model([image])[0]  # Note: Adjust this line based on actual API usage
+        results = model.predict(source=image)[0] 
         
         classes = results.boxes.cls
         class_indices = classes.cpu().numpy().tolist() if isinstance(classes, torch.Tensor) else classes.tolist()
@@ -52,22 +52,23 @@ def predict():
         # Process results
         boxes = results.boxes
         
+        
         for pred in results:
-            print(pred)
+            
             pred.save(filename="result.jpg")  # save to disk
         
         # Assuming `boxes` is your Boxes object
         # Convert boxes to NumPy array and then to list
         print("classes :" , class_names_list)
         
-        probs_list = None
-        # Convert boxes, probs, masks, and keypoints to lists
-        boxes_list = boxes.xyxy.cpu().numpy().tolist() if isinstance(boxes.xyxy, torch.Tensor) else boxes.xyxy.tolist()
-
-        # Calculate severity
         
+        
+        if not class_names_list:
+            return jsonify({
+            'classes': 'No detections'
+            }), 200
 
-        if class_names_list[0]== 'healthy':
+        elif class_names_list[0]== 'healthy':
             return jsonify({
             'classes': 'healthy'
             }), 200
@@ -78,6 +79,7 @@ def predict():
             'severity': severity,
             'classes': 'infected plant'
         }), 200
+        
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
