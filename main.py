@@ -65,12 +65,14 @@ def predict():
         
         if not class_names_list:
             return jsonify({
-            'classes': 'No detections'
+                'severity': None,
+                'classes': 'No detections'
             }), 200
 
         elif class_names_list[0]== 'healthy':
             return jsonify({
-            'classes': 'healthy'
+                'severity': None,
+                'classes': 'healthy'
             }), 200
         else:
             severity = calculate_severity(boxes.xyxy)
